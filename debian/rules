@@ -10,4 +10,26 @@
 export DH_VERBOSE=1
 
 %:
-	dh  $@
+	dh $@
+
+override_dh_install:
+	dh_install
+	# Install Python package
+	python3 -m build -w
+	mkdir -p debian/python3-zfs-tools/usr/lib/python3/dist-packages
+	unzip -q dist/zfs_tools-*.whl -d debian/python3-zfs-tools/usr/lib/python3/dist-packages
+	# Create wrapper scripts in zfs-tools package
+	mkdir -p debian/zfs-tools/usr/bin
+	for script in zbackup zflock zreplicate zsnap; do \
+		rm -f debian/zfs-tools/usr/bin/$$script; \
+		echo '#!/usr/bin/python3' > debian/zfs-tools/usr/bin/$$script; \
+		echo "from zfs_tools.$$script import main" >> debian/zfs-tools/usr/bin/$$script; \
+		echo 'if __name__ == "__main__":' >> debian/zfs-tools/usr/bin/$$script; \
+		echo '    main()' >> debian/zfs-tools/usr/bin/$$script; \
+		chmod 755 debian/zfs-tools/usr/bin/$$script; \
+	done
+	ls -laR debian/zfs-tools/usr/bin
+
+override_dh_link:
+	# Skip dh_link to prevent it from creating symlinks
+	:
